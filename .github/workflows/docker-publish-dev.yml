@@ -5,6 +5,9 @@ on:
     branches: [ 'dev' ]
     tags: [ 'v*.*.*' ]
 
+permissions:
+  contents: read
+
 jobs:
   push_to_registry:
     name: Push Docker Dev image to Docker Hub
@@ -13,8 +16,8 @@ jobs:
       fail-fast: false
 
     steps:
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v4
+      # - name: Setup QEMU
+      #   uses: docker/setup-qemu-action@v3
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -36,7 +39,6 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
-          platforms: linux/amd64
-          # ,linux/arm64,linux/arm/v7
+          # platforms: linux/amd64,linux/arm64,linux/arm/v7
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
