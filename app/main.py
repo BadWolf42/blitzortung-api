@@ -54,7 +54,6 @@ async def lifespan(app: FastAPI):
 # -----------------------------------------------------------------------------
 app = FastAPI(
     title='Blitzortung proxy for Jeedom',
-    version=settings.version,
     docs_url='/debug' if settings.debug else None, # Disable docs (Swagger UI)
     redoc_url=None,                               # Disable redoc
     lifespan = lifespan,
