@@ -69,7 +69,7 @@ def get_data(
     logger.debug('get_data(%i, %f, %f, %i):', since, lat, lon, rad)
 
     query = 'SELECT DISTINCT'\
-        '  ts / 1000000000,'\
+        '  ts,'\
         '  lat::float / 10000000,'\
         '  lon::float / 10000000'\
         ' FROM impacts'\
@@ -90,7 +90,7 @@ def get_data(
     for impact in result:
         impacts.append(
             ImpactModel(
-                time = impact[0],
+                time = impact[0] // 1000000000,
                 lat = impact[1],
                 lon = impact[2]
             )
@@ -129,11 +129,11 @@ def get_stats(response: Response):
 
     start: int = monotonic_ns()
     query = 'SELECT * FROM'\
-        ' (SELECT COUNT(*) FROM impacts),'\
+        ' (SELECT COUNT(*) FROM impacts) as nb,'\
         ' (SELECT ts, lat::float / 10000000, lon::float / 10000000'\
-        '  FROM impacts ORDER BY ts ASC LIMIT 1),'\
+        '  FROM impacts ORDER BY ts ASC LIMIT 1) as first,'\
         ' (SELECT ts, lat::float / 10000000, lon::float / 10000000'\
-        '  FROM impacts ORDER BY ts DESC LIMIT 1);'
+        '  FROM impacts ORDER BY ts DESC LIMIT 1) as last;'
     result = connection.execute(text(query)).fetchone()
     ret = {}
     ret['nb'] = result[0]
