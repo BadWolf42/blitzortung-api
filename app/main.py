@@ -71,8 +71,7 @@ def get_data(
     query = 'SELECT DISTINCT'\
         '  ts / 1000000000,'\
         '  lat::float / 10000000,'\
-        '  lon::float / 10000000,'\
-        '  earth_distance(ll_to_earth('+str(lat)+', '+str(lon)+'), location)'\
+        '  lon::float / 10000000'\
         ' FROM impacts'\
         ' WHERE'\
         '  earth_box('\
@@ -93,8 +92,7 @@ def get_data(
             ImpactModel(
                 time = impact[0],
                 lat = impact[1],
-                lon = impact[2],
-                distance = impact[3]
+                lon = impact[2]
             )
         )
 
@@ -142,14 +140,12 @@ def get_stats(response: Response):
     ret['first'] = ImpactModel(
         time = result[1],
         lat = result[2],
-        lon = result[3],
-        distance = 0
+        lon = result[3]
     )
     ret['last'] = ImpactModel(
         time = result[4],
         lat = result[5],
-        lon = result[6],
-        distance = 0
+        lon = result[6]
     )
     response.headers["x-computation-ms"] = str((monotonic_ns()-start)/(10**6))
     return ret

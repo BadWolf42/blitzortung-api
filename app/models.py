@@ -24,7 +24,6 @@ class ImpactModel(BaseModel):
     time: int = Field(ge=0, description="Impact timestamp")
     lat: float = Field(ge=-90, le=90, description="Impact latitude")
     lon: float = Field(ge=-180, le=180, description="Impact longitude")
-    distance: Optional[int] = Field(ge=0, description="Impact distance (m)")
 
 # -----------------------------------------------------------------------------
 class ResponseEqModel(BaseModel):
