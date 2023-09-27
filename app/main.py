@@ -62,29 +62,27 @@ def get_data(
         since: int,
         lat: float,
         lon: float,
-        rad: int,
-        bigint: bool = False
+        rad: int
     ) -> List[ImpactModel]:
     global connection
 
     logger.debug('get_data(%i, %f, %f, %i):', since, lat, lon, rad)
-    factor = 1 if bigint else 1000000000
 
     query = 'SELECT DISTINCT'\
-    ' time,'\
-    ' location[0] as lat,'\
-    ' location[1] as lon,'\
-    ' CAST('\
-    '  earth_distance('\
-    '   ll_to_earth(location[0], location[1]),'\
-    '   ll_to_earth('+str(lat)+', '+str(lon)+')'\
-    '  ) AS INT'\
-    ' ) as distance'\
-    ' FROM impacts'\
-    ' WHERE time > '+str(since * factor)+' AND'\
-    '  earth_box(ll_to_earth('+str(lat)+', '+str(lon)+'), '+str(rad)+')'\
-    '  @> ll_to_earth(location[0], location[1])'\
-    ' ORDER BY time ASC;'
+        '  ts / 1000000000,'\
+        '  lat::float / 10000000,'\
+        '  lon::float / 10000000,'\
+        '  earth_distance(ll_to_earth('+str(lat)+', '+str(lon)+'), location)'\
+        ' FROM impacts'\
+        ' WHERE'\
+        '  earth_box('\
+        '   ll_to_earth('+str(lat)+', '+str(lon)+'), '+str(rad) +\
+        '  ) @> location'\
+        '  AND ts > '+str(since * 1000000000)+\
+        '  AND earth_distance('\
+        '   ll_to_earth('+str(lat)+','+str(lon)+'),'\
+        '   location) <= '+str(rad) +\
+        ' ORDER BY ts ASC;'
 
     result = connection.execute(text(query)).fetchall()
     # logger.error('res: %s', repr(result))
@@ -93,7 +91,7 @@ def get_data(
     for impact in result:
         impacts.append(
             ImpactModel(
-                time = round(impact[0] / factor),
+                time = impact[0],
                 lat = impact[1],
                 lon = impact[2],
                 distance = impact[3]
@@ -111,7 +109,7 @@ def post_query_v2(q: QueryModel, response: Response) -> ResponseModel:
     eqs: List[ResponseEqModel] = []
 
     # Get last impact time
-    query = 'SELECT time FROM impacts ORDER BY time DESC LIMIT 1;'
+    query = 'SELECT ts FROM impacts ORDER BY ts DESC LIMIT 1;'
     result = connection.execute(text(query)).fetchone()
     lastimpact = result[0] // 1000000000
 
@@ -133,11 +131,11 @@ def get_stats(response: Response):
 
     start: int = monotonic_ns()
     query = 'SELECT * FROM'\
-        ' (SELECT COUNT(*) as nb FROM impacts) as nb,'\
-        ' (SELECT time, location[0] as lat, location[1] as lon'\
-        '  FROM impacts ORDER BY time ASC LIMIT 1) as first,'\
-        ' (SELECT time, location[0] as lat, location[1] as lon'\
-        '  FROM impacts ORDER BY time DESC LIMIT 1) as last;'
+        ' (SELECT COUNT(*) FROM impacts),'\
+        ' (SELECT ts, lat::float / 10000000, lon::float / 10000000'\
+        '  FROM impacts ORDER BY ts ASC LIMIT 1),'\
+        ' (SELECT ts, lat::float / 10000000, lon::float / 10000000'\
+        '  FROM impacts ORDER BY ts DESC LIMIT 1);'
     result = connection.execute(text(query)).fetchone()
     ret = {}
     ret['nb'] = result[0]
