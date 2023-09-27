@@ -9,9 +9,7 @@ from typing import List
 
 from .models import (
     ImpactModel,
-    OldBoundaryModel,
-    BoundaryModel,
-    LLRModel,
+    QueryModel,
     ResponseModel,
     ResponseEqModel
 )
@@ -105,104 +103,8 @@ def get_data(
     return impacts
 
 # -----------------------------------------------------------------------------
-@app.post("/query")
-def post_query_v1(
-    q: OldBoundaryModel,
-    response: Response
-) -> List[ResponseEqModel]:
-    global connection
-
-    start: int = monotonic_ns()
-    res: List[ResponseEqModel] = []
-    for eq in q.eqs:
-        # Find radius
-        rad = (eq.north - eq.south) * 40000 / 360 / 2
-        #Limit radius to 5000 km
-        if rad > 5000:
-            raise HTTPException(
-                status_code=422,
-                detail = [
-                    {
-                        "type": "greater_than_equal",
-                        "loc": [
-                            "body",
-                            "eqs",
-                            "eqId=" + eq.id,
-                            "north, south, est, west"
-                        ],
-                        "msg": "Area radius shoud be less than 5000 km",
-                        "input": rad
-                    }
-                ]
-            )
-        # Find eq coords and radius
-        lat = eq.south + (eq.north - eq.south) / 2
-        lon = eq.west + (eq.est - eq.west) / 2
-        impacts = get_data(q.since, lat, lon, rad * 1000, True)
-        res.append(ResponseEqModel(id=eq.id, impacts=impacts))
-    response.headers["x-computation-ms"] = str((monotonic_ns()-start)/(10**6))
-    return res
-
-@app.post("/querynsew")
-def post_query_nsew(
-    q: BoundaryModel,
-    response: Response
-) -> List[ResponseEqModel]:
-    global connection
-
-    start: int = monotonic_ns()
-    res: List[ResponseEqModel] = []
-    # since: int = q.since * 100000000                       # TODO limit since
-    for eq in q.eqs:
-        # Find radius
-        rad = (eq.north - eq.south) * 40000 / 360 / 2
-        #Limit radius to 5000 km
-        if rad > 5000:
-            raise HTTPException(
-                status_code=422,
-                detail = [
-                    {
-                        "type": "greater_than_equal",
-                        "loc": [
-                            "body",
-                            "eqs",
-                            "eqId=" + eq.id,
-                            "north, south, est, west"
-                        ],
-                        "msg": "Area radius shoud be less than 5000 km",
-                        "input": rad
-                    }
-                ]
-            )
-        # Find eq coords and radius
-        lat = eq.south + (eq.north - eq.south) / 2
-        lon = eq.west + (eq.est - eq.west) / 2
-        impacts = get_data(q.since, lat, lon, rad * 1000)
-        res.append(ResponseEqModel(id=eq.id, impacts=impacts))
-    response.headers["x-computation-ms"] = str((monotonic_ns()-start)/(10**6))
-    return res
-
-@app.post("/queryllr")
-def post_query_llr(
-    q: LLRModel,
-    response: Response
-) -> List[ResponseEqModel]:
-    global connection
-
-    start: int = monotonic_ns()
-    res: List[ResponseEqModel] = []
-    # since: int = q.since * 100000000                       # TODO limit since
-    for eq in q.eqs:
-        lat = eq.lat
-        lon = eq.lon
-        rad = eq.rad
-        impacts = get_data(q.since, lat, lon, rad * 1000)
-        res.append(ResponseEqModel(id=eq.id, impacts=impacts))
-    response.headers["x-computation-ms"] = str((monotonic_ns()-start)/(10**6))
-    return res
-
 @app.post("/v2/query")
-def post_query_v2(q: LLRModel, response: Response) -> ResponseModel:
+def post_query_v2(q: QueryModel, response: Response) -> ResponseModel:
     global connection
 
     start: int = monotonic_ns()
@@ -211,7 +113,7 @@ def post_query_v2(q: LLRModel, response: Response) -> ResponseModel:
     # Get last impact time
     query = 'SELECT time FROM impacts ORDER BY time DESC LIMIT 1;'
     result = connection.execute(text(query)).fetchone()
-    since = result[0] // 1000000000
+    lastimpact = result[0] // 1000000000
 
     # Get new impacts since last time
     for eq in q.eqs:
@@ -220,8 +122,9 @@ def post_query_v2(q: LLRModel, response: Response) -> ResponseModel:
         rad = eq.rad
         impacts = get_data(q.since, lat, lon, rad * 1000)
         eqs.append(ResponseEqModel(id=eq.id, impacts=impacts))
+    ret = ResponseModel(since=lastimpact, eqs=eqs)
     response.headers["x-computation-ms"] = str((monotonic_ns()-start)/(10**6))
-    return ResponseModel(since=since, eqs=eqs)
+    return ret
 
 
 @app.get("/stats")
