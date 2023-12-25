@@ -1,4 +1,4 @@
-fastapi==0.103.1
+fastapi==0.106.0
 psycopg2-binary==2.9.7
 pydantic-settings==2.0.3
 SQLAlchemy==2.0.21
