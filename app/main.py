@@ -11,7 +11,7 @@ from .models import (
     ImpactModel,
     QueryModel,
     ResponseModel,
-    ResponseEqModel
+    ResponseEqModel,
 )
 from .utils import LogFilter
 from .settings import settings
@@ -52,18 +52,13 @@ async def lifespan(app: FastAPI):
 # -----------------------------------------------------------------------------
 app = FastAPI(
     title='Blitzortung for Jeedom',
-    docs_url = ('/debug' if settings.debug else None), # Disable Swagger UI
-    redoc_url = None, # Always disable redoc
-    lifespan = lifespan,
+    docs_url=('/debug' if settings.debug else None),  # Disable Swagger UI
+    redoc_url=None,  # Always disable redoc
+    lifespan=lifespan,
 )
 
 # -----------------------------------------------------------------------------
-def get_data(
-        since: int,
-        lat: float,
-        lon: float,
-        rad: int
-    ) -> List[ImpactModel]:
+def get_data(since: int, lat: float, lon: float, rad: int) -> List[ImpactModel]:
     global connection
 
     logger.debug('get_data(%i, %f, %f, %i):', since, lat, lon, rad)
@@ -90,9 +85,7 @@ def get_data(
     for impact in result:
         impacts.append(
             ImpactModel(
-                time = impact[0] // 1000000000,
-                lat = impact[1],
-                lon = impact[2]
+                time=(impact[0]//1000000000), lat=impact[1], lon=impact[2]
             )
         )
 
@@ -107,16 +100,13 @@ def post_query_v2(q: QueryModel, response: Response) -> ResponseModel:
     eqs: List[ResponseEqModel] = []
 
     # Get last impact time
-    query = 'SELECT ts FROM impacts ORDER BY ts DESC LIMIT 1;'
+    query: str = 'SELECT ts FROM impacts ORDER BY ts DESC LIMIT 1;'
     result = connection.execute(text(query)).fetchone()
-    lastimpact = result[0] // 1000000000
+    lastimpact: int = result[0] // 1000000000
 
     # Get new impacts since last time
     for eq in q.eqs:
-        lat = eq.lat
-        lon = eq.lon
-        rad = eq.rad
-        impacts = get_data(q.since, lat, lon, rad * 1000)
+        impacts = get_data(q.since, eq.lat, eq.lon, eq.rad * 1000)
         eqs.append(ResponseEqModel(id=eq.id, impacts=impacts))
     ret = ResponseModel(since=lastimpact, eqs=eqs)
     response.headers["x-computation-ms"] = str((monotonic_ns()-start)/(10**6))
