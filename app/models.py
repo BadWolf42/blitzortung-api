@@ -33,3 +33,8 @@ class ResponseEqModel(BaseModel):
 class ResponseModel(BaseModel):
     since: int = Field(ge=0, lt=9999999999, description="Very last impact")
     eqs: List[ResponseEqModel] = Field(max_items=5, description="Equipments")
+
+class StatsResponseModel(BaseModel):
+    nb: int = Field(ge=0, description="Number of impacts in database")
+    first: ImpactModel = Field(description="First (in time) impact in the database")
+    last: ImpactModel = Field(description="Latest impact in the database")

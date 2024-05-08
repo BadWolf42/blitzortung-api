@@ -12,6 +12,7 @@ from .models import (
     QueryModel,
     ResponseModel,
     ResponseEqModel,
+    StatsResponseModel,
 )
 from .utils import LogFilter
 from .settings import settings
@@ -114,7 +115,7 @@ def post_query_v2(q: QueryModel, response: Response) -> ResponseModel:
 
 
 @app.get("/stats")
-def get_stats(response: Response):
+def get_stats(response: Response) -> StatsResponseModel:
     global connection
 
     start: int = monotonic_ns()
@@ -125,20 +126,12 @@ def get_stats(response: Response):
         ' (SELECT ts, lat::float / 10000000, lon::float / 10000000'\
         '  FROM impacts ORDER BY ts DESC LIMIT 1) as last;'
     result = connection.execute(text(query)).fetchone()
-    ret = {}
-    ret['nb'] = result[0]
-    ret['first'] = ImpactModel(
-        time = result[1],
-        lat = result[2],
-        lon = result[3]
-    )
-    ret['last'] = ImpactModel(
-        time = result[4],
-        lat = result[5],
-        lon = result[6]
-    )
     response.headers["x-computation-ms"] = str((monotonic_ns()-start)/(10**6))
-    return ret
+    return StatsResponseModel(
+        nb=result[0],
+        first=ImpactModel(time=result[1], lat=result[2], lon=result[3]),
+        last=ImpactModel(time=result[4], lat=result[5], lon=result[6]),
+    )
 
 # -----------------------------------------------------------------------------
 @app.exception_handler(404)
