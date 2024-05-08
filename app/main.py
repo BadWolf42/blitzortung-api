@@ -64,20 +64,16 @@ def get_data(since: int, lat: float, lon: float, rad: int) -> List[ImpactModel]:
 
     logger.debug('get_data(%i, %f, %f, %i):', since, lat, lon, rad)
 
-    query = 'SELECT DISTINCT'\
-        '  ts,'\
-        '  lat::float / 10000000,'\
-        '  lon::float / 10000000'\
-        ' FROM impacts'\
-        ' WHERE'\
-        '  earth_box('\
-        '   ll_to_earth('+str(lat)+', '+str(lon)+'), '+str(rad) +\
-        '  ) @> location'\
-        '  AND ts > '+str(since * 1000000000)+\
-        '  AND earth_distance('\
-        '   ll_to_earth('+str(lat)+','+str(lon)+'),'\
-        '   location) <= '+str(rad) +\
-        ' ORDER BY ts ASC;'
+    query: str = f'''
+        SELECT DISTINCT
+            ts, lat::float / 10000000, lon::float / 10000000
+        FROM impacts
+        WHERE
+            earth_box(ll_to_earth({lat}, {lon}), {rad}) @> location
+            AND ts > {since * 1000000000}
+            AND earth_distance(ll_to_earth({lat}, {lon}), location) <= {rad}
+         ORDER BY ts ASC;
+    '''
 
     result = connection.execute(text(query)).fetchall()
     # logger.error('res: %s', repr(result))
@@ -119,12 +115,20 @@ def get_stats(response: Response) -> StatsResponseModel:
     global connection
 
     start: int = monotonic_ns()
-    query = 'SELECT * FROM'\
-        ' (SELECT COUNT(*) FROM impacts) as nb,'\
-        ' (SELECT ts, lat::float / 10000000, lon::float / 10000000'\
-        '  FROM impacts ORDER BY ts ASC LIMIT 1) as first,'\
-        ' (SELECT ts, lat::float / 10000000, lon::float / 10000000'\
-        '  FROM impacts ORDER BY ts DESC LIMIT 1) as last;'
+    query: str = '''
+        SELECT * FROM
+            (
+                SELECT COUNT(*) FROM impacts
+            ) as nb,
+            (
+                SELECT ts, lat::float / 10000000, lon::float / 10000000
+                    FROM impacts ORDER BY ts ASC LIMIT 1
+            ) as first,
+            (
+                SELECT ts, lat::float / 10000000, lon::float / 10000000
+                    FROM impacts ORDER BY ts DESC LIMIT 1
+            ) as last;
+    '''
     result = connection.execute(text(query)).fetchone()
     response.headers["x-computation-ms"] = str((monotonic_ns()-start)/(10**6))
     return StatsResponseModel(
